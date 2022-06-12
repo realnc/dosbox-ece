@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=DOSBox ECE
+GenericName=DOS Emulator
+Type=Application
+Comment=DOSBox Enhanced Community Edition
+Exec=dosbox
+TryExec=dosbox
+Icon=dosbox
+Categories=Game;Emulator;
