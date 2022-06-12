@@ -1,0 +1,192 @@
+version: 2.1
+
+workflows:
+  build:
+    jobs:
+      - build-linux:
+          name: build-linux-x86-64
+          res_class: medium
+          docker_image_arch: amd64
+          appimage_arch: x86_64
+      - build-linux:
+          name: build-linux-x86
+          res_class: medium
+          docker_image_arch: i386
+          appimage_arch: i686
+      - build-linux:
+          name: build-linux-arm64v8
+          res_class: arm.medium
+          docker_image_arch: arm64v8
+          appimage_arch: aarch64
+      - build-linux:
+          name: build-linux-arm32v7
+          res_class: arm.medium
+          docker_image_arch: arm32v7
+          appimage_arch: armhf
+      - upload-linux:
+          filters:
+            branches:
+              only:
+                - 'master'
+          requires:
+            - build-linux-x86-64
+            - build-linux-x86
+            - build-linux-arm64v8
+            - build-linux-arm32v7
+          context:
+            - global-org
+
+jobs:
+  build-linux:
+    parameters:
+      res_class:
+        type: string
+      docker_image_arch:
+        type: string
+      appimage_arch:
+        type: string
+
+    resource_class: << parameters.res_class >>
+    machine:
+      image: ubuntu-2004:current
+
+    steps:
+      - checkout
+      - run:
+          command: |
+            docker run \
+                -e "APPIMAGE_EXTRACT_AND_RUN=1" \
+                -e "DEBIAN_FRONTEND=noninteractive" \
+                -v "$PWD":/build \
+                << parameters.docker_image_arch >>/ubuntu:16.04 \
+                bash -c '(
+                    set -ex
+
+                    apt-get -y update
+                    apt-get -y full-upgrade
+                    apt-get -y --no-install-recommends install apt-utils
+                    apt-get -y --no-install-recommends install \
+                        autoconf \
+                        autoconf-archive \
+                        automake \
+                        build-essential \
+                        ca-certificates \
+                        cmake \
+                        curl \
+                        gettext \
+                        libfluidsynth-dev \
+                        libsdl-net1.2-dev \
+                        libsdl1.2-dev \
+                        libtool \
+                        libtool-bin \
+                        tofrodos \
+                        unzip \
+                        wget \
+                        qt5-default \
+                    ;
+
+                    cd /tmp
+                    wget -nv 'https://github.com/munt/munt/archive/refs/tags/libmt32emu_2_6_3.tar.gz' -O- | tar xz
+                    cd munt-libmt32emu*/mt32emu
+                    mkdir build
+                    cd build
+                    cmake ../
+                    make -j$(nproc)
+                    make install/strip
+                    ldconfig
+
+                    cd /tmp
+                    wget -nv \
+                        'https://github.com/NixOS/patchelf/releases/download/0.13.1/patchelf-0.13.1.tar.bz2' \
+                        -O- | tar xj \
+                    ;
+                    cd patchelf-*
+                    ./configure --prefix=/usr/local
+                    make -j$(nproc)
+                    make install-strip
+
+                    wget -nv \
+                        'https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-<< parameters.appimage_arch >>.AppImage' \
+                        -O /usr/local/bin/appimagetool \
+                    ;
+                    chmod +x /usr/local/bin/appimagetool
+
+                    wget -nv "https://github.com/probonopd/linuxdeployqt/archive/refs/tags/continuous.tar.gz" -O- | tar xz
+                    cd linuxdeployqt-continuous
+                    qmake
+                    make -j$(nproc)
+                    make install
+                    ln -s $(qmake -query QT_INSTALL_ARCHDATA)/bin/linuxdeployqt /usr/local/bin
+
+                    wget -nv 'https://github.com/voyageur/openglide/raw/master/sdk2_3dfx.h' -O /usr/include/sdk2_3dfx.h
+                    wget -nv 'https://github.com/voyageur/openglide/raw/master/sdk2_glide.h' -O /usr/include/sdk2_glide.h
+                    wget -nv 'https://github.com/voyageur/openglide/raw/master/sdk2_glidesys.h' -O /usr/include/sdk2_glidesys.h
+                    wget -nv 'https://github.com/voyageur/openglide/raw/master/sdk2_sst1vid.h' -O /usr/include/sdk2_sst1vid.h
+                    wget -nv 'https://github.com/voyageur/openglide/raw/master/sdk2_glideutl.h' -O /usr/include/sdk2_glideutl.h
+
+                    cd /build
+                    fromdos autogen.sh
+                    chmod +x autogen.sh
+                    ./autogen.sh
+                    ./configure \
+                        --prefix=/tmp/dosbox/AppDir/usr \
+                        --disable-debug \
+                        --disable-silent-rules \
+                        --disable-dependency-tracking \
+                        --enable-alsa-midi \
+                        --enable-screenshots \
+                        --enable-recording \
+                        --enable-opengl \
+                    ;
+                    make -j$(nproc)
+                    make install-strip
+                    cd /tmp/dosbox
+                    mkdir -p AppDir/usr/share/pixmaps
+                    mkdir -p AppDir/usr/share/applications
+                    cp /build/dosbox.png AppDir/usr/share/pixmaps/
+                    cp /build/dosbox-ece.desktop AppDir/usr/share/applications/
+                    linuxdeployqt \
+                        AppDir/usr/share/applications/dosbox-ece.desktop \
+                        -no-copy-copyright-files \
+                        -no-translations \
+                        -appimage \
+                    ;
+                    cp *.AppImage /build/
+                )'
+
+            mkdir -p /tmp/workspace
+            cp *.AppImage /tmp/workspace/dosbox-ece-<< parameters.appimage_arch >>.AppImage
+
+      - when:
+          condition:
+            equal: [ 'master', << pipeline.git.branch >> ]
+          steps:
+            - persist_to_workspace:
+                root: /tmp/workspace
+                paths:
+                  - dosbox-ece-<< parameters.appimage_arch >>.AppImage
+
+  upload-linux:
+    resource_class: small
+    docker:
+      - image:  cimg/go:1.16
+
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - run:
+          name: "Upload release"
+          command: |
+            go install github.com/tcnksm/ghr@latest
+            ghr \
+                -t "${GITHUB_TOKEN}" \
+                -u "${CIRCLE_PROJECT_USERNAME}" \
+                -r "${CIRCLE_PROJECT_REPONAME}" \
+                -c "${CIRCLE_SHA1}" \
+                -n "Latest Build" \
+                -b "Builds of current master branch." \
+                -delete \
+                -prerelease \
+                latest_build \
+                /tmp/workspace \
+            ;
