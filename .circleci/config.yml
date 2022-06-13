@@ -8,21 +8,25 @@ workflows:
           res_class: medium
           docker_image_arch: amd64
           appimage_arch: x86_64
+          setarch: linux64
       - build-linux:
           name: build-linux-x86
           res_class: medium
           docker_image_arch: i386
           appimage_arch: i686
+          setarch: linux32
       - build-linux:
           name: build-linux-arm64v8
           res_class: arm.medium
           docker_image_arch: arm64v8
           appimage_arch: aarch64
+          setarch: linux64
       - build-linux:
           name: build-linux-arm32v7
           res_class: arm.medium
           docker_image_arch: arm32v7
           appimage_arch: armhf
+          setarch: linux32
       - upload-linux:
           filters:
             branches:
@@ -45,6 +49,8 @@ jobs:
         type: string
       appimage_arch:
         type: string
+      setarch:
+        type: string
 
     resource_class: << parameters.res_class >>
     machine:
@@ -59,7 +65,7 @@ jobs:
                 -e "DEBIAN_FRONTEND=noninteractive" \
                 -v "$PWD":/build \
                 << parameters.docker_image_arch >>/ubuntu:16.04 \
-                bash -c '(
+                << parameters.setarch >> bash -c '(
                     set -ex
 
                     apt-get -y update
