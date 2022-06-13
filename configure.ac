@@ -307,7 +307,7 @@ case "$host_cpu" in
     c_targetcpu="m68k"
     c_unalignedmemory=yes
     ;;
-   armv7l)
+   armv7l | armv8l)
     AC_DEFINE(C_TARGETCPU,ARMV7LE)
     AC_MSG_RESULT(ARMv7 Little Endian)
     c_targetcpu="arm"
