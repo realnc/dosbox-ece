@@ -64,7 +64,7 @@ jobs:
                 -e "APPIMAGE_EXTRACT_AND_RUN=1" \
                 -e "DEBIAN_FRONTEND=noninteractive" \
                 -v "$PWD":/build \
-                << parameters.docker_image_arch >>/ubuntu:16.04 \
+                << parameters.docker_image_arch >>/ubuntu:18.04 \
                 << parameters.setarch >> bash -c '(
                     set -ex
 
