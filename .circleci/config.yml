@@ -92,7 +92,7 @@ jobs:
                     ;
 
                     cd /tmp
-                    wget -nv 'https://github.com/munt/munt/archive/refs/tags/libmt32emu_2_6_3.tar.gz' -O- | tar xz
+                    wget -nv 'https://github.com/munt/munt/archive/refs/tags/libmt32emu_2_7_0.tar.gz' -O- | tar xz
                     cd munt-libmt32emu*/mt32emu
                     mkdir build
                     cd build
