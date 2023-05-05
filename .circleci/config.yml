@@ -111,19 +111,22 @@ jobs:
                     make -j$(nproc)
                     make install-strip
 
+                    cd /tmp
                     wget -nv \
                         'https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-<< parameters.appimage_arch >>.AppImage' \
                         -O /usr/local/bin/appimagetool \
                     ;
                     chmod +x /usr/local/bin/appimagetool
 
+                    cd /tmp
                     wget -nv "https://github.com/probonopd/linuxdeployqt/archive/refs/tags/continuous.tar.gz" -O- | tar xz
                     cd linuxdeployqt-continuous
                     qmake
                     make -j$(nproc)
                     make install
-                    ln -s $(qmake -query QT_INSTALL_ARCHDATA)/bin/linuxdeployqt /usr/local/bin
+                    ln -s $(qmake -query QT_INSTALL_BINS)/linuxdeployqt /usr/local/bin
 
+                    cd /tmp
                     wget -nv 'https://github.com/voyageur/openglide/raw/master/sdk2_3dfx.h' -O /usr/include/sdk2_3dfx.h
                     wget -nv 'https://github.com/voyageur/openglide/raw/master/sdk2_glide.h' -O /usr/include/sdk2_glide.h
                     wget -nv 'https://github.com/voyageur/openglide/raw/master/sdk2_glidesys.h' -O /usr/include/sdk2_glidesys.h
