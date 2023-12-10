@@ -109,6 +109,7 @@ speexdsp/configure: speexdsp/autogen.sh
 speexdsp/Makefile: speexdsp/configure
 	cd speexdsp \
 	&& sed -i.bak 's/.*PKG_CHECK_MODULES.*//g' configure \
+	&& chmod a+x configure \
 	&& ./configure --disable-shared --disable-examples --with-fft=smallft
 
 lib/libspeexdsp.a: speexdsp/Makefile
